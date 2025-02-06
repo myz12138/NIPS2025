@@ -1,8 +1,6 @@
 ## Hybrid Variational Inference for Text-Attributed Graphs through Joint Label-Embedding Estimation
 **Official implementation of paper**  <br>[Hybrid Variational Inference for Text-Attributed Graphs through Joint Label-Embedding Estimation] <br>
 
-Yizhuo Ma, Rongzheng Wang, ShuangLiang, KeQin*
-
 **Submission in ICML 2025**
 
 ## Overview
