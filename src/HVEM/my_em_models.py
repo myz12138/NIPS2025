@@ -8,12 +8,11 @@ from data_pro import encode_texts
 from utils import args
 import time
 device = torch.device('cuda:'+args.cuda_number if torch.cuda.is_available() else 'cpu')
-print(device)
 class TextEncoder:
-    def __init__(self, tokenizer,ft_model):#ft_model是包含分类器的，.lm_model是不包含分类器的
+    def __init__(self, tokenizer,ft_model):
         self.tokenizer =tokenizer
         self.model = ft_model.to(device)
-        self.model.eval()  # 设置为评估模式，不更新参数
+        self.model.eval()  #initilize embeddings,do not update parameters
         
     @torch.no_grad()
     def encode(self, texts):
@@ -28,7 +27,6 @@ class TextEncoder:
                 self.tokenizer,
                 truncation_length=512
             )
-            #batch_embeddings= self.model(**{'input_ids':input_ids,"attention_mask":attention_mask}).pooler_output
             batch_embeddings= self.model(**{'input_ids':input_ids,"attention_mask":attention_mask}).last_hidden_state
             batch_embeddings=torch.mean(batch_embeddings,dim=-2)
             all_ids.append(input_ids.cpu())
@@ -37,15 +35,6 @@ class TextEncoder:
             if i%(batch_size)==0:
                 print(f'initial_step:{i},time:{time.time()-t}')
         return torch.cat(embeddings,dim=0),torch.cat(all_ids, dim=0),torch.cat(all_mask, dim=0)
-        #return embeddings,torch.cat(all_ids, dim=0),torch.cat(all_mask, dim=0)
-    @torch.no_grad()
-    def encode_feature(self,feature,):#encode the initial feature of node in dataset for m-step
-        print(type(feature),feature.shape)
-        return torch.tensor(feature)
-    @torch.no_grad()
-    def encode_optimized(self,optimized_texts):
-        optimized_ids,optimized_mask=encode_texts(optimized_texts,device,self.tokenizer,truncation_length=512)
-        return optimized_ids,optimized_mask
         
 class E1StepModel(nn.Module):
     def __init__(self,ft_model,lm_dim,latent_dim):
@@ -55,19 +44,18 @@ class E1StepModel(nn.Module):
             nn.Linear(lm_dim,latent_dim),
             
         )
-        self.mlp_latent_sigma=nn.Sequential(#Ehe M的u值都激活函数试试
+        self.mlp_latent_sigma=nn.Sequential(
             nn.Linear(lm_dim,latent_dim),
             nn.ReLU(),
         )
     def forward(self, e_ids,e_mask):
-        #x=self.emb_model(**{'input_ids':e_ids,"attention_mask":e_mask}).pooler_output
         x=self.emb_model(**{'input_ids':e_ids,"attention_mask":e_mask}).last_hidden_state
         x=torch.mean(x,dim=-2)
-        u,sigma=self.mlp_latent_u(x),self.mlp_latent_sigma(x)#torch.chunk(x,chunks=2,dim=-1)
+        u,sigma=self.mlp_latent_u(x),self.mlp_latent_sigma(x)
         sigma=torch.clamp(sigma, min=1e-2) 
         return u,sigma
 
-class E2StepModel(nn.Module):#获得潜在表征
+class E2StepModel(nn.Module):
     def __init__(self,latent_dim,e_hidden_size, num_classes,dropout):
         super().__init__()
         self.mlp_class = nn.Sequential(
@@ -89,8 +77,8 @@ class M1StepModel(nn.Module):
             self.gnn_1= GCNConv(initial_dim,latent_dim)
             self.gnn_2=GCNConv(latent_dim,latent_dim)
         elif gnn_name=='GAT':
-            self.gnn_1= GATConv(initial_dim, latent_dim, heads=1)
-            self.gnn_2= GATConv(latent_dim, latent_dim, heads=8)
+            self.gnn_1= GATConv(initial_dim, latent_dim, heads=4)
+            self.gnn_2= GATConv(latent_dim, latent_dim, heads=4)
         elif gnn_name=='MLP':
             self.gnn_1= nn.Linear(initial_dim, latent_dim)
             self.gnn_2= nn.Linear(latent_dim, latent_dim)
@@ -101,7 +89,6 @@ class M1StepModel(nn.Module):
         self.dropout=nn.Dropout(dropout)
         self.mlp_sigma=nn.Linear(latent_dim,latent_dim)
         self.act=nn.ReLU()
-            
         
     def forward(self, initial_e_emb, edge_index):
         initial_e_emb=self.act(self.gnn_1(initial_e_emb,edge_index))
@@ -118,20 +105,18 @@ class M2StepModel(nn.Module):
             self.gnn_1= GCNConv(latent_dim,m_hidden_size)
             self.gnn_2=GCNConv(m_hidden_size, num_classes)
         elif gnn_name=='GAT':
-            self.gnn_1= GATConv(latent_dim,m_hidden_size, heads=1)
-            self.gnn_2= GATConv(m_hidden_size, num_classes, heads=1)
+            self.gnn_1= GATConv(latent_dim,m_hidden_size, heads=4)
+            self.gnn_2= GATConv(m_hidden_size, num_classes, heads=4)
         elif gnn_name=='MLP':
             self.gnn_1= nn.Linear(latent_dim,m_hidden_size)
             self.gnn_2= nn.Linear(m_hidden_size, num_classes)
         elif gnn_name=='SAGE':
             self.gnn_1= SAGEConv(latent_dim,m_hidden_size)
             self.gnn_2= SAGEConv(m_hidden_size, num_classes)
-                                 
-        
         self.dropout = nn.Dropout(dropout)
     
     def forward(self, last_e_emb, edge_index):
-        x1 = F.relu(self.gnn_1(last_e_emb, edge_index))#直接采样u值作为输入嵌入，并最小化方差
+        x1 = F.relu(self.gnn_1(last_e_emb, edge_index))
         x2 = self.dropout(x1)
         logits = self.gnn_2(x2, edge_index)
         return logits
@@ -166,7 +151,7 @@ class EDataset(Dataset):
             'idx': self.idxs[index]
         }
     
-class TaskOnlyModel(nn.Module):
+class TaskOnlyModel(nn.Module):#model for ablation study (Concat) 
     def __init__(self,ft_model,lm_dim,concat_size,num_classes,dropout):
         super().__init__()
         self.emb_model=ft_model
@@ -195,13 +180,11 @@ class TaskOnlyModel(nn.Module):
         logits=self.mlp_class(x_concat)
         return logits,x_text,x_graph[batch_idx]
     
-class AlignOnlyModel(nn.Module):
+class AlignOnlyModel(nn.Module):#model for ConGraT (MSE)
     def __init__(self,ft_model,lm_dim,align_size,dropout):
         super().__init__()
         self.emb_model=ft_model
         self.mlp_text=nn.Linear(lm_dim,align_size)
-        
-
         self.gnn_layers1=GCNConv(lm_dim,2*align_size)
         self.act=nn.LeakyReLU()
         self.dropout=nn.Dropout(dropout)
@@ -221,27 +204,3 @@ class AlignforClassModel(nn.Module):
 
     def forward(self,x_t):
         return self.classfy(x_t)
-
-class TextGraphDataset(Dataset):
-    def __init__(self, ids,mask, labels,train_mask, val_mask, test_mask):
-        self.ids=ids
-        self.mask=mask
-        self.labels = labels
-        self.train_mask = train_mask
-        self.val_mask = val_mask
-        self.test_mask = test_mask
-        
-
-    def __len__(self):
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        return {
-            'idx':torch.tensor([i for i in range(len(self.labels))])[idx],
-            'ids': self.ids[idx],
-            'mask': self.mask[idx],
-            'label': self.labels[idx],
-            'train_mask': self.train_mask[idx],
-            'val_mask': self.val_mask[idx],
-            'test_mask': self.test_mask[idx],
-        }

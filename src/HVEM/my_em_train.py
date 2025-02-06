@@ -9,10 +9,8 @@ from my_em_models import TextEncoder,E1StepModel,E2StepModel,M1StepModel,M2StepM
 class EMTrainer:
     def __init__(self, config,tokenizer,Lmft_Model):
         self.device =device
-        
-        # 初始化模型
         self.text_encoder = TextEncoder(tokenizer=tokenizer,ft_model=Lmft_Model)
-    
+
         self.e1_model = E1StepModel(
             ft_model=Lmft_Model,
             lm_dim=config['lm_dim'],
@@ -41,29 +39,23 @@ class EMTrainer:
             gnn_name=config['gnn_name']
         ).to(self.device)
         
-        
-        # 优化器
         self.e1_optimizer = torch.optim.Adam(self.e1_model.parameters(), lr=config['e1_lr'])
         self.e2_optimizer = torch.optim.Adam(self.e2_model.parameters(), lr=config['e2_lr'])
         self.m1_optimizer = torch.optim.Adam(self.m1_model.parameters(), lr=config['m1_lr'])
         self.m2_optimizer = torch.optim.Adam(self.m2_model.parameters(), lr=config['m2_lr'])
-        
-        
-        # 损失函数
+
         self.criterion_class = nn.CrossEntropyLoss()
         self.criterion_mse=nn.MSELoss()
-        
         self.config = config
 
     @torch.no_grad()
-    def sample_pro(self,u,sigma):
-        
+    def sample_pro(self,u,sigma):#sample from Gaussian distribution
         distributions = [torch.distributions.Normal(mean, std) for mean, std in zip(u, sigma)]
         samples= torch.stack([dist.sample() for dist in distributions])
         return samples.to(device)
     
+    #initialize pseudo-label-e by m1 and m2 step
     def initialize_pseudo_labels(self,x,graph_data):
-        #initial pseudo label e by m1 and m2 step
         self.m1_model.eval()
         self.m2_model.eval()
         with torch.no_grad():
@@ -91,16 +83,6 @@ class EMTrainer:
         correct = (pred_labels[mask] == true_labels[mask]).sum().item()
         total = mask.sum().item()
         return correct / total if total > 0 else 0.0
-
-    def weight_edges(self,embs, edge_tensor):
-        with torch.no_grad():
-            src_nodes = edge_tensor[0]
-            tgt_nodes = edge_tensor[1]
-            weights = []
-            new_embs1,new_embs2=embs[src_nodes],embs[tgt_nodes]
-            weights=F.cosine_similarity(new_embs1,new_embs2,dim=-1)
-            weights=torch.clamp(weights,min=0)
-        return weights.to(device) 
      
     def e1_step(self, e_dataloader,pesudo_mu_e,pesudo_sigma_e):
         avg_loss=0
@@ -120,8 +102,8 @@ class EMTrainer:
         avg_loss=avg_loss/pesudo_mu_e.shape[0]
         best_e1_model_state =self.e1_model.state_dict()
         torch.save(best_e1_model_state, self.config['e1_model_path'])
-        
         print(f'finished e1_train step,e1_loss:{avg_loss}')
+
         self.e1_model.eval()
         with torch.no_grad():
             pesudo_mu_m,pesudo_sigma_m=torch.zeros_like(pesudo_mu_e).to(device),torch.zeros_like(pesudo_sigma_e).to(device)
@@ -145,11 +127,10 @@ class EMTrainer:
             loss1 = self.criterion_class(logits[train_mask], true_labels[train_mask])
             loss2 = self.criterion_class(logits[val_mask], pseudo_labels.data[val_mask])
             loss3 = self.criterion_class(logits[test_mask], pseudo_labels.data[test_mask])
-            loss=self.config['e2_loss_Lweight']*loss1+(1-self.config['e2_loss_Lweight'])*(loss2+loss3)/2
+            loss=(1-self.config['e2_loss_Lweight'])*loss1+self.config['e2_loss_Lweight']*(loss2+loss3)/2
             self.e2_optimizer.zero_grad()
             loss.backward()
             self.e2_optimizer.step()
-            
             e_predictions = logits.argmax(dim=-1)            
             e_test_acc,e_val_acc = self.compute_accuracy(e_predictions, true_labels, test_mask),\
                                     self.compute_accuracy(e_predictions, true_labels, val_mask)
@@ -195,7 +176,7 @@ class EMTrainer:
             loss1 = self.criterion_class(logits[train_mask], true_labels[train_mask])
             loss2=  self.criterion_class(logits[val_mask], pseudo_labels[val_mask])
             loss3= self.criterion_class(logits[test_mask], pseudo_labels.data[test_mask])
-            loss=self.config['m2_loss_Lweight']*loss1+(1-self.config['m2_loss_Lweight'])*(loss2+loss3)/2
+            loss=(1-self.config['m2_loss_Lweight'])*loss1+self.config['m2_loss_Lweight']*(loss2+loss3)/2
             m_predictions=logits.argmax(dim=-1)
             self.m2_optimizer.zero_grad()
             loss.backward()
@@ -210,7 +191,6 @@ class EMTrainer:
         return  m_predictions.detach(),m_test_acc,m_val_acc
     
     def train(self, x_feature,texts, graph_data, train_mask,val_mask, test_mask, true_labels):
-        #initial_embeddings=torch.rand(len(texts),self.config['lm_dim'])
         m_initial_embeddings,all_ids,all_mask= self.text_encoder.encode(texts)
         m_initial_embeddings,graph_data=m_initial_embeddings.to(self.device),graph_data.to(self.device)
         ini_time=time.time()
@@ -238,12 +218,10 @@ class EMTrainer:
                     pesudo_mu_m,
                     pesudo_sigma_m)
             
-            e_predictions,e_test,e_val= self.e2_step(
+            e_predictions,e_test,_= self.e2_step(
                         train_mask,val_mask, test_mask, true_labels, m_predictions,sample_embs_e
                     ) 
-            
-            
-            m_predictions,m_test,m_val= self.m2_step(
+            m_predictions,m_test,_= self.m2_step(
                     graph_data,
                     train_mask,
                     val_mask,
@@ -262,9 +240,7 @@ class EMTrainer:
         np.save(self.config['folder_name']+self.config['dataset_name']+'/embs_m_'+self.config['dataset_name']+'.npy', sample_embs_m.cpu().numpy())
         np.save(self.config['folder_name']+self.config['dataset_name']+'/labels_'+self.config['dataset_name']+'.npy', true_labels.cpu().numpy())
         np.save(self.config['folder_name']+self.config['dataset_name']+'/test_mask_'+self.config['dataset_name']+'.npy', test_mask.cpu().numpy())
-        
         print(f'time:{time.time()-ini_time}')
-        #relative_entropy_values=compute_node_relative_entropy_test(sample_embs_e,sample_embs_m,graph_data,test_mask,true_labels)
         print(f'best_test:{best_test}')
             
             
