@@ -16,14 +16,14 @@ python3 main.py --lm_file_path "./roberta-large" \
                  --epoch_all 50 \
                  --initial_dim 1024 \
                  --latent_dim 256 \
-                 --early_epoch_e 0 \
-                 --early_epoch_m 2 \
-                 --epoch_e_class 3 \
-                 --epoch_m_class 3 \
-                 --e2_loss_Lweigh 0.2 \
-                 --m2_loss_Lweigh 0.2 \
+                 --early_epoch_e 1 \
+                 --early_epoch_m 3 \
+                 --epoch_e_class 5 \
+                 --epoch_m_class 5 \
+                 --e2_loss_Lweigh 0.4 \
+                 --m2_loss_Lweigh 0.4 \
                  --folder_name "./TAG_data/" \
                  --dataset_name "cora" \
-                 --sample_time 10 \
+                 --sample_time 20 \
                  --gnn_name "GCN" \
                  --lm_name "roberta"
