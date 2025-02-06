@@ -45,6 +45,3 @@ Use `run_lm.sh` to run the codes in `./src/LM/lm_ft.py` and fine-tuning the LM.
 ### 2. main.py
 Use `run.sh` to run the codes in `main.py` and reproduce the published results. Please refer to the content listed in the appendix of our paper for parameter adjustments for different datasets.
 
-## Others
-
-We will be gradually updating additional supplementary content, so please stay tuned for further updates.
