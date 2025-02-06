@@ -20,7 +20,6 @@ class ft_Model(nn.Module):
         self.classifier = nn.Linear(hidden_dim, labels_dim)  
         
     def forward(self,ids,mask):
-        
         outputs = self.lm_model(**{'input_ids':ids,"attention_mask":mask}).last_hidden_state
         outputs=torch.mean(outputs,dim=-2)
         logits = self.classifier(outputs)
@@ -85,31 +84,31 @@ if __name__=="__main__":
     
     parser = argparse.ArgumentParser(description='parser example')
 
-    parser.add_argument('--batch_size', default=64, type=int, help='batch size')#0.9457 0.9507 0.7616
+    parser.add_argument('--batch_size', default=64, type=int, help='batch size.')
 
-    parser.add_argument('--cuda_number', default='0', type=str, help='cuda number')
+    parser.add_argument('--cuda_number', default='0', type=str, help='cuda number.')
 
-    parser.add_argument('--dataset_name', default='wikics', type=str, help='name of dataset')
+    parser.add_argument('--dataset_name', default='wikics', type=str, help='name of dataset.')
 
-    parser.add_argument('--lm_file_path', default='./roberta-large', type=str, help='path of lm_model')
+    parser.add_argument('--lm_file_path', default='./roberta-large', type=str, help='path of lm_model.')
 
-    parser.add_argument('--lm_name', default='roberta', type=str, help='path of lm_model')
+    parser.add_argument('--lm_name', default='roberta', type=str, help='name of lm_model.')
 
-    parser.add_argument('--folder_name', default='./TAG_data/', type=str, help='name of folder for dataset and their model')
+    parser.add_argument('--folder_name', default='./TAG_data/', type=str, help='folder name for dataset.')
 
-    parser.add_argument('--epoch', default=10, type=int, help='epoch of train for classifier')
+    parser.add_argument('--epoch', default=10, type=int, help='epoch of train for fine-tuning pertrained language models.')
 
-    parser.add_argument('--lm_dim', default=1024, type=int, help='epoch of train for classifier')
+    parser.add_argument('--lm_dim', default=1024, type=int, help='hidden-dim of LMs.')
 
-    parser.add_argument('--label_dim', default=10, type=int, help='epoch of train for classifier')
+    parser.add_argument('--label_dim', default=10, type=int, help='number of categories.')
 
-    parser.add_argument('--learning_rate', default=1e-5, type=float, help='epoch of train for classifier')
+    parser.add_argument('--learning_rate', default=1e-5, type=float, help='learning_rate in fine-tuning lm.')
 
-    parser.add_argument('--train_ratio', default=0.6, type=float, help='epoch of train for classifier')
+    parser.add_argument('--train_ratio', default=0.6, type=float, help='train ratio in spilting the dataset.')
 
-    parser.add_argument('--val_ratio', default=0.2, type=float, help='epoch of train for classifier')
+    parser.add_argument('--val_ratio', default=0.2, type=float, help='val ratio in spilting the dataset, the test ratio is equal to the val ratio.')
 
-    parser.add_argument('--flag', default='lm_ft', type=str, help='epoch of train for classifier')
+    parser.add_argument('--flag', default='lm_ft', type=str, help='whether restart spliting dataset or not.')
 
     args_ft = parser.parse_args()
 
@@ -118,10 +117,7 @@ if __name__=="__main__":
     tokenizer = AutoTokenizer.from_pretrained(args_ft.lm_file_path)
     lm_model = AutoModel.from_pretrained(args_ft.lm_file_path)
     
-    #Data_all=get_Data(load_data_path)
-    #Data_splited=get_splited_data( Data_all.texts,Data_all.labels,device,tokenizer,flag='lm_ft')
-    
-    if args_ft.dataset_name in ['cora','citeseer','pubmed']:
+    if args_ft.dataset_name in ['cora','citeseer']:
         Data_splited=read_data(args=args_ft,device=device)
     elif args_ft.dataset_name=='arxiv-2023':
         Data_splited=read_data_arxiv23(device=device)
