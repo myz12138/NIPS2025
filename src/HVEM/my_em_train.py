@@ -204,14 +204,14 @@ class EMTrainer:
         pesudo_mu_e,pesudo_sigma_e, m_predictions = self.initialize_pseudo_labels(m_initial_embeddings,graph_data)
         for epoch in range(self.config['epoch_all']):
             print(epoch)
-            if epoch<=self.config['early_epoch_e']:
+            if epoch<self.config['early_epoch_e']:
                 pesudo_mu_m,pesudo_sigma_m,sample_embs_e=self.e1_step(
                     dataloader,
                     pesudo_mu_e,
                     pesudo_sigma_e,
                     
                 )
-            if epoch<=self.config['early_epoch_m']:
+            if epoch<self.config['early_epoch_m']:
                 pesudo_mu_e,pesudo_sigma_e,sample_embs_m=self.m1_step(
                     m_initial_embeddings,
                     graph_data,
