@@ -1,11 +1,9 @@
-## Hybrid Variational Inference for Text-Attributed Graphs through Joint Label-Embedding Estimation
-**Official implementation of paper**  <br>[Hybrid Variational Inference for Text-Attributed Graphs through Joint Label-Embedding Estimation] <br>
 
-**Submission in ICML 2025**
+**Submission in NIPS 2025**
 
 ## Overview
 
-we propose HVEM, a Hybrid Variational Expectation-Maximization framework through joint label-embedding estimation for TAGs. HVEM is designed as a dual-branch framework, with each branch comprising two components that focus on estimating embeddings and labels, respectively.
+we propose HVEM, a Hybrid Variational Expectation-Maximization framework for joint embedding-label optimization for TAGs. HVEM is designed as a dual-branch framework, with each branch comprising two components that focus on estimating embeddings and labels, respectively.
 
 ![Architecture of HVEM](./Figure/method.png)
 
