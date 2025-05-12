@@ -3,7 +3,7 @@ from utils import args
 from lm_ft import ft_Model
 from my_em_train import EMTrainer
 from transformers import AutoTokenizer, AutoModel, AdamW
-from data_pro import read_data_products,read_data_arxiv23,read_data,read_data_wikics,read_data_photo
+from data_pro import read_data_products,read_data_arxiv23,read_data,read_data_wikics,read_data_photo,read_data_ogbn_arxiv
 from my_em_models import device
 
 #transfer node_id into mask
@@ -57,6 +57,8 @@ def main():
         Data_splited=read_data_wikics(device=device)
     elif  args.dataset_name=='photo':
         Data_splited=read_data_photo(device=device)
+    elif args.dataset_name=='ogbn_arxiv':
+        Data_splited=read_data_ogbn_arxiv(device=device)
     else:
         print('error')
         
