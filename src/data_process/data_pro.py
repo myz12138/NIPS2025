@@ -202,3 +202,42 @@ def read_data_photo(device):
         texts=texts
     )
     return Data_splited
+
+#read data for ogbn_arxiv
+def read_data_ogbn_arxiv(device):
+
+    with open('./TAG_data/ogbn_arxiv/edge.json','r')  as file:
+        edge_index=json.load(file)
+        edge_index=[torch.tensor(edge) for edge in edge_index]
+        edge_index=torch.stack(edge_index).T
+        maxl,minr=torch.max(edge_index[0]),torch.min(edge_index[0])
+        max_r,min_r=torch.max(edge_index[1]),torch.min(edge_index[1])
+    with open('./TAG_data/ogbn_arxiv/data.json','r')  as file:
+        data=json.load(file)
+    
+    texts,true_labels,train_idx,val_idx,test_idx=[],[],[],[],[]
+    flag=0
+    for data_i in data:
+        texts.append(data_i['text'])
+        true_labels.append(data_i['label'])
+        
+        if data_i['type']=='train':
+            train_idx.append(data_i['id'])
+        elif data_i['type']=='val':
+            val_idx.append(data_i['id'])
+        else:
+            test_idx.append(data_i['id'])
+        flag+=1
+    true_labels=torch.tensor(true_labels)
+    train_idx,val_idx,test_idx=torch.tensor(train_idx),torch.tensor(val_idx),torch.tensor(test_idx)
+    train_mask,val_mask,test_mask=indices_to_mask(train_idx, len(texts)),indices_to_mask(val_idx, len(texts)),indices_to_mask(test_idx, len(texts))
+    Data_splited=Data(
+        train_mask=train_mask.to(device),
+        val_mask=val_mask.to(device),
+        test_mask=test_mask.to(device),
+        x_feature=[],
+        edge_index=edge_index.to(device),
+        true_labels=true_labels.to(device),
+        texts=texts
+    )
+    return Data_splited
