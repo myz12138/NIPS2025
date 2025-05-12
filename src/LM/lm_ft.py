@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, AutoModel, AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import numpy as np
-from data_pro import LmftDataset,encode_texts,read_data,read_data_products,read_data_arxiv23,read_data_wikics,read_data_photo
+from data_pro import LmftDataset,encode_texts,read_data,read_data_products,read_data_arxiv23,read_data_wikics,read_data_photo,read_data_ogbn_arxiv
 import time
 from torch_geometric.data import Data
 
@@ -127,6 +127,8 @@ if __name__=="__main__":
         Data_splited=read_data_wikics(device=device)
     elif  args_ft.dataset_name=='photo':
         Data_splited=read_data_photo(device=device)
+    elif args_ft.dataset_name=='ogbn_arxiv':
+        Data_splited=read_data_ogbn_arxiv(device=device)
     else:
         print('error')
     print(f'dataset:{args_ft.dataset_name},lm_name:{args_ft.lm_name}')
